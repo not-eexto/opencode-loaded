@@ -14,6 +14,7 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - Live counter refresh when the session agent changes with Shift+Tab (`session.agent.selected`).
 - `/loaded` (alias `/assets`) dialog with instruction and skill paths.
 - Unit tests for permission evaluation and label formatting.
+- CI runs on the `ubuntu-slim` runner with a 10 minute job timeout.
 
 ## [0.1.0] - 2026-11-19
 
