@@ -3,6 +3,7 @@ import { Plugin, usePlugin } from "@opencode/plugin/tui"
 import { Show, createEffect, createSignal } from "solid-js"
 import type { Accessor } from "solid-js"
 import { Loaded } from "./rpc.js"
+import { availableIds, type Rule } from "./permissions.js"
 
 type Context = Plugin.Context
 type Location = ReturnType<Context["data"]["location"]["default"]>
@@ -123,9 +124,31 @@ function createAssets(context: Context) {
   const [plugins, setPlugins] = createSignal<Entry[]>([])
   const [revision, setRevision] = createSignal(0)
   const [ready, setReady] = createSignal(false)
+  /** Last session shown in the prompt, so `/loaded` uses the same agent. */
+  const [session, setSession] = createSignal<string | undefined>(undefined)
 
   const pending = new Map<string, Promise<void>>()
   const location = (): Location => context.location ?? context.data.location.default()
+
+  /**
+   * OpenCode builds the ruleset as `agent.permissions ++ session.permissions`
+   * and the last matching rule wins. An unknown agent or session means there is
+   * no trustworthy answer, so callers report every discovered skill instead.
+   */
+  function rulesFor(id: string | undefined): Rule[] | undefined {
+    if (!id) return undefined
+    try {
+      const current = context.data.session.get(id)
+      if (!current?.agent) return undefined
+      const agent = (context.data.location.agent.list(location()) ?? []).find(
+        (entry) => entry.id === current.agent,
+      )
+      if (!agent) return undefined
+      return [...(agent.permissions as Rule[]), ...((current.permissions ?? []) as Rule[])]
+    } catch {
+      return undefined
+    }
+  }
 
   async function sync(target: Location) {
     await Promise.allSettled([
@@ -170,7 +193,12 @@ function createAssets(context: Context) {
     pending.set(
       key,
       sync(target)
-        .then(() => load(target, sessionID))
+        .then(async () => {
+          if (sessionID && context.data.session.get(sessionID)) {
+            await context.data.session.sync(sessionID).catch(() => undefined)
+          }
+          await load(target, sessionID)
+        })
         .catch(() => {
           setReady(true)
         }),
@@ -197,15 +225,20 @@ function createAssets(context: Context) {
     }))
   }
 
-  function entriesOf(key: GroupKey): Entry[] {
+  function entriesOf(key: GroupKey, id?: string): Entry[] {
     switch (key) {
       case "instructions":
         return instructionEntries()
-      case "skills":
-        return (context.data.location.skill.list(location()) ?? []).map((skill) => ({
-          title: skill.name || skill.id,
-          description: context.ui.format.path(skill.path),
-        }))
+      case "skills": {
+        const skills = context.data.location.skill.list(location()) ?? []
+        const allowed = availableIds(skills, rulesFor(id))
+        return skills
+          .filter((skill) => allowed.has(skill.id))
+          .map((skill) => ({
+            title: skill.name || skill.id,
+            description: context.ui.format.path(skill.path),
+          }))
+      }
       case "agents":
         return (context.data.location.agent.list(location()) ?? []).map((agent) => ({
           title: agent.name || agent.id,
@@ -231,8 +264,8 @@ function createAssets(context: Context) {
     }
   }
 
-  function count(key: GroupKey): number {
-    return entriesOf(key).length
+  function count(key: GroupKey, id?: string): number {
+    return entriesOf(key, id).length
   }
 
   function label(key: GroupKey, value: number): string {
@@ -246,10 +279,10 @@ function createAssets(context: Context) {
    * hints, so it gets short labels narrowed to `width` characters; the home
    * footer has room for full words.
    */
-  function badge(compact = false): string {
+  function badge(id: string | undefined, compact = false): string {
     if (!ready()) return ""
     const parts = options.badge.map((key) => {
-      const value = count(key)
+      const value = count(key, id)
       return `${value} ${compact ? LABELS[key].short : label(key, value)}`
     })
     const separator = compact ? " · " : options.separator
@@ -262,16 +295,16 @@ function createAssets(context: Context) {
     return options.suffix ? `${withPrefix} ${options.suffix}` : withPrefix
   }
 
-  function groups(): Group[] {
+  function groups(id?: string): Group[] {
     return GROUP_KEYS.map((key) => ({
       key,
       title: LABELS[key].many,
-      entries: entriesOf(key),
+      entries: entriesOf(key, id),
     }))
   }
 
   async function show(): Promise<void> {
-    const available = groups()
+    const available = groups(session())
     const choice = await context.ui.dialog.select<GroupKey>({
       title: "Loaded assets",
       placeholder: "Filter groups",
@@ -301,6 +334,7 @@ function createAssets(context: Context) {
   return {
     badge,
     ensure,
+    remember: (id: string) => setSession(id),
     show,
     dispose: () => stop(),
   }
@@ -311,11 +345,12 @@ type Assets = ReturnType<typeof createAssets>
 function Badge(props: { assets: Assets; sessionID?: string; compact?: boolean }) {
   const context = usePlugin()
   createEffect(() => {
+    if (props.sessionID) props.assets.remember(props.sessionID)
     props.assets.ensure(props.sessionID)
   })
   return (
     <text fg={context.theme.text.muted} wrapMode="none">
-      {props.assets.badge(props.compact === true)}
+      {props.assets.badge(props.sessionID, props.compact === true)}
     </text>
   )
 }

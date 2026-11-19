@@ -6,17 +6,20 @@ What did OpenCode actually load for this location? `opencode-loaded` answers tha
 1 instruction, 44 skills, 19 agents, 3 plugins
 ```
 
-- **Home footer** (`home.footer.status`): full summary, full words.
-- **Session footer** (`prompt.footer.status`): compact summary (`1 instr · 44 skills · 19 agents`) that drops trailing groups until it fits, because that row is shared with the working directory and the key hints.
-- **`/loaded`** (alias `/assets`): pick a group, then inspect the entries.
+- **Home footer** (`home.footer.status`): full summary, full words. No session is selected here, so all discovered skills are shown.
+- **Session footer** (`prompt.footer.status`): compact summary (`1 instr · 30 skills · 19 agents`) that drops trailing groups until it fits, because that row is shared with the working directory and the key hints. Skills are filtered for the session's agent.
+- **`/loaded`** (alias `/assets`): pick a group, then inspect the entries; it uses the same agent as the last session shown.
 
 ## How the counts are computed
 
 | Group | Source |
 | --- | --- |
 | instructions | `AGENTS.md` / `CLAUDE.md` discovery plus the `instructions` entries of the configuration |
-| skills, agents, commands, references, MCP | the location registries |
+| agents, commands, references, MCP | the location registries |
+| skills | the location registry, filtered by the session agent's permissions |
 | plugins | registered plugins, built-ins excluded |
+
+The skill count is not cosmetic: OpenCode itself drops skills whose `skill` permission evaluates to `deny` before writing the request's skill guidance. The plugin reproduces that exactly — same wildcard matcher, last matching rule wins, `agent.permissions` followed by `session.permissions`, default `ask` is not a deny — so a session using `honest` reports 30 skills while `device-expert` reports 34 out of the same 44 discovered.
 
 Instructions are the only group that can lie if taken from the filesystem alone, so they are **verified**: once a session has issued at least one request, a file counts only if its text is actually present in the request's system parts. Before that first request the list is discovery only, and the dialog labels it `unverified`.
 
@@ -68,6 +71,7 @@ With options:
 ```
 src/index.ts         request hook + RPC method (server side)
 src/instructions.ts  discovery, configuration expansion, content verification
+src/permissions.ts   OpenCode-compatible wildcard matching and rule evaluation
 src/rpc.ts           evidence contract between the two sides
 src/tui.tsx          footer slots, badge, /loaded command
 ```
