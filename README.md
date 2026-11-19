@@ -8,7 +8,7 @@ What did OpenCode actually load for this location? `opencode-loaded` answers tha
 
 - **Home footer** (`home.footer.status`): full summary, full words. No session is selected here, so all discovered skills are shown.
 - **Session footer** (`prompt.footer.status`): compact summary (`1 instr · 30 skills · 19 agents`) that drops trailing groups until it fits, because that row is shared with the working directory and the key hints. Skills are filtered for the session's agent.
-- **`/loaded`** (alias `/assets`): pick a group, then inspect the entries; it uses the same agent as the last session shown.
+- **`/loaded`** (alias `/assets`): pick a group, then inspect the entries; it uses the same agent as the last session shown. The second list shows paths: full for instruction files, shortened to fit for skills and references.
 
 ## How the counts are computed
 
@@ -20,6 +20,8 @@ What did OpenCode actually load for this location? `opencode-loaded` answers tha
 | plugins | registered plugins, built-ins excluded |
 
 The skill count is not cosmetic: OpenCode itself drops skills whose `skill` permission evaluates to `deny` before writing the request's skill guidance. The plugin reproduces that exactly — same wildcard matcher, last matching rule wins, `agent.permissions` followed by `session.permissions`, default `ask` is not a deny — so a session using `honest` reports 30 skills while `device-expert` reports 34 out of the same 44 discovered.
+
+Changing agent with Shift+Tab emits `session.agent.selected`; the plugin listens for it and recomputes the badge immediately, without waiting for a new request.
 
 Instructions are the only group that can lie if taken from the filesystem alone, so they are **verified**: once a session has issued at least one request, a file counts only if its text is actually present in the request's system parts. Before that first request the list is discovery only, and the dialog labels it `unverified`.
 
@@ -58,8 +60,27 @@ With options:
 | `badge` | `instructions, skills, agents, plugins` | groups in the badge, in order |
 | `separator` | `", "` | separator of the full badge |
 | `full` | `true` | full words (`3 instructions`) instead of short labels (`3 instr`) |
+| `labels` | none | per-group override; `{count}` is replaced by the number, otherwise the text is appended after it |
 | `prefix` / `suffix` | none | text around the badge, e.g. `suffix: "loaded"` |
 | `width` | `32` | character budget of the compact session badge; trailing groups are dropped until it fits |
+
+For a minimal badge, use templates:
+
+```json
+{
+  "plugins": [
+    {
+      "package": "opencode-loaded",
+      "options": {
+        "badge": ["instructions", "skills", "agents"],
+        "labels": { "instructions": "{count}i", "skills": "{count}s", "agents": "{count}a" }
+      }
+    }
+  ]
+}
+```
+
+That renders `1i, 30s, 19a`.
 
 ## Requirements
 
@@ -71,6 +92,7 @@ With options:
 ```
 src/index.ts         request hook + RPC method (server side)
 src/instructions.ts  discovery, configuration expansion, content verification
+src/labels.ts        badge labels and `{count}` templates
 src/permissions.ts   OpenCode-compatible wildcard matching and rule evaluation
 src/rpc.ts           evidence contract between the two sides
 src/tui.tsx          footer slots, badge, /loaded command

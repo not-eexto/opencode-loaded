@@ -4,13 +4,12 @@ import { Show, createEffect, createSignal } from "solid-js"
 import type { Accessor } from "solid-js"
 import { Loaded } from "./rpc.js"
 import { availableIds, type Rule } from "./permissions.js"
+import { DEFAULT_BADGE, GROUP_KEYS, LABELS, formatLabel, type GroupKey, type Labels } from "./labels.js"
 
 type Context = Plugin.Context
 type Location = ReturnType<Context["data"]["location"]["default"]>
 type ConfigEntry = Awaited<ReturnType<Context["client"]["config"]["get"]>>[number]
 type PluginEntry = Awaited<ReturnType<Context["client"]["plugin"]["list"]>>["data"][number]
-
-type GroupKey = "instructions" | "skills" | "agents" | "commands" | "references" | "mcp" | "plugins"
 
 interface Entry {
   title: string
@@ -33,19 +32,6 @@ interface InstructionReport {
   sources: AmbientSource[]
 }
 
-const GROUP_KEYS: GroupKey[] = ["instructions", "skills", "agents", "commands", "references", "mcp", "plugins"]
-const DEFAULT_BADGE: GroupKey[] = ["instructions", "skills", "agents", "plugins"]
-
-const LABELS: Record<GroupKey, { short: string; one: string; many: string }> = {
-  instructions: { short: "instr", one: "instruction", many: "instructions" },
-  skills: { short: "skills", one: "skill", many: "skills" },
-  agents: { short: "agents", one: "agent", many: "agents" },
-  commands: { short: "cmds", one: "command", many: "commands" },
-  references: { short: "refs", one: "reference", many: "references" },
-  mcp: { short: "mcp", one: "MCP", many: "MCP" },
-  plugins: { short: "plugins", one: "plugin", many: "plugins" },
-}
-
 /** Registry changes that invalidate every cached snapshot. */
 const INVALIDATE = new Set<string>([
   "config.updated",
@@ -60,6 +46,7 @@ const INVALIDATE = new Set<string>([
 
 interface Options {
   badge: GroupKey[]
+  labels: Labels
   separator: string
   full: boolean
   prefix: string | undefined
@@ -72,8 +59,17 @@ function readOptions(raw: Readonly<Record<string, unknown>>): Options {
     ? raw.badge.filter((value): value is GroupKey => GROUP_KEYS.includes(value as GroupKey))
     : DEFAULT_BADGE
 
+  const labels: Labels = {}
+  if (raw.labels && typeof raw.labels === "object" && !Array.isArray(raw.labels)) {
+    const input = raw.labels as Record<string, unknown>
+    for (const key of GROUP_KEYS) {
+      if (typeof input[key] === "string") labels[key] = input[key] as string
+    }
+  }
+
   return {
     badge,
+    labels,
     separator: typeof raw.separator === "string" ? raw.separator : ", ",
     full: raw.full !== false,
     prefix: typeof raw.prefix === "string" ? raw.prefix : undefined,
@@ -126,6 +122,8 @@ function createAssets(context: Context) {
   const [ready, setReady] = createSignal(false)
   /** Last session shown in the prompt, so `/loaded` uses the same agent. */
   const [session, setSession] = createSignal<string | undefined>(undefined)
+  /** Agent chosen in the composer, which can change before the session record catches up. */
+  const [agents, setAgents] = createSignal<Record<string, string>>({})
 
   const pending = new Map<string, Promise<void>>()
   const location = (): Location => context.location ?? context.data.location.default()
@@ -139,12 +137,13 @@ function createAssets(context: Context) {
     if (!id) return undefined
     try {
       const current = context.data.session.get(id)
-      if (!current?.agent) return undefined
+      const selected = agents()[id] ?? current?.agent
+      if (!selected) return undefined
       const agent = (context.data.location.agent.list(location()) ?? []).find(
-        (entry) => entry.id === current.agent,
+        (entry) => entry.id === selected,
       )
       if (!agent) return undefined
-      return [...(agent.permissions as Rule[]), ...((current.permissions ?? []) as Rule[])]
+      return [...(agent.permissions as Rule[]), ...((current?.permissions ?? []) as Rule[])]
     } catch {
       return undefined
     }
@@ -214,6 +213,12 @@ function createAssets(context: Context) {
     if (INVALIDATE.has(details.type)) invalidate()
   })
 
+  /** Shift+Tab emits this as soon as the agent changes, without a new request. */
+  const stopAgent = context.data.on("session.agent.selected", (event) => {
+    const id = String(event.data.sessionID)
+    setAgents((previous) => ({ ...previous, [id]: String(event.data.agent) }))
+  })
+
   function instructionEntries(): Entry[] {
     const current = report()
     const suffix = current.known ? "" : " · unverified"
@@ -268,10 +273,8 @@ function createAssets(context: Context) {
     return entriesOf(key, id).length
   }
 
-  function label(key: GroupKey, value: number): string {
-    const names = LABELS[key]
-    if (!options.full) return names.short
-    return value === 1 ? names.one : names.many
+  function label(key: GroupKey, value: number, compact: boolean): string {
+    return formatLabel(key, value, { labels: options.labels, full: options.full, compact })
   }
 
   /**
@@ -281,10 +284,7 @@ function createAssets(context: Context) {
    */
   function badge(id: string | undefined, compact = false): string {
     if (!ready()) return ""
-    const parts = options.badge.map((key) => {
-      const value = count(key, id)
-      return `${value} ${compact ? LABELS[key].short : label(key, value)}`
-    })
+    const parts = options.badge.map((key) => label(key, count(key, id), compact))
     const separator = compact ? " · " : options.separator
     if (compact) {
       while (parts.length > 1 && parts.join(separator).length > options.width) parts.pop()
@@ -336,7 +336,10 @@ function createAssets(context: Context) {
     ensure,
     remember: (id: string) => setSession(id),
     show,
-    dispose: () => stop(),
+    dispose: () => {
+      stop()
+      stopAgent()
+    },
   }
 }
 
