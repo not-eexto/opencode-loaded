@@ -286,13 +286,17 @@ function createAssets(context: Context) {
     if (!ready()) return ""
     const parts = options.badge.map((key) => label(key, count(key, id), compact))
     const separator = compact ? " · " : options.separator
+    const trailing = compact && !options.suffix ? " ·" : ""
     if (compact) {
-      while (parts.length > 1 && parts.join(separator).length > options.width) parts.pop()
+      // Account for trailing separator in width budget
+      const maxLen = options.width - trailing.length
+      while (parts.length > 1 && parts.join(separator).length > maxLen) parts.pop()
     }
     if (parts.length === 0) return ""
     const body = parts.join(separator)
     const withPrefix = options.prefix ? `${options.prefix} ${body}` : body
-    return options.suffix ? `${withPrefix} ${options.suffix}` : withPrefix
+    const withSuffix = options.suffix ? `${withPrefix} ${options.suffix}` : withPrefix
+    return `${withSuffix}${trailing}`
   }
 
   function groups(id?: string): Group[] {
