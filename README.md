@@ -23,19 +23,44 @@ OpenCode plugin that shows, directly in the TUI, which instruction files, skills
 
 ## Installation
 
-`opencode-loaded` works with all [official OpenCode plugin installation methods](https://opencode.ai/docs/plugins/).
+`opencode-loaded` requires **OpenCode 2** (`@opencode/plugin` 2.3.x). It is currently **GitHub-only** — no npm package is published yet. It works with the [official OpenCode plugin installation methods](https://opencode.ai/docs/plugins/).
 
-### 1. Via `opencode.jsonc` (recommended)
+### 1. Via CLI (recommended)
 
-Add the plugin to your global or project config. Since the package is not yet on npm, use a **local path** (clone the repo first, see method 3) or use the CLI (method 2) which writes the resolved path for you.
+Let OpenCode install the plugin and write the resolved path for you. The `github:owner/repo` shorthand is a CLI feature — it is **not** valid inside `opencode.jsonc`.
+
+```sh
+opencode plugin add github:not-eexto/opencode-loaded
+
+# Pin to a branch, tag or commit
+opencode plugin add github:not-eexto/opencode-loaded#v0.1.0
+opencode plugin add github:not-eexto/opencode-loaded#main
+opencode plugin add git+https://github.com/not-eexto/opencode-loaded.git#main
+```
+
+### 2. Local directory (development)
+
+Clone into a discovered plugins directory — OpenCode picks it up automatically, no config entry needed:
+
+```sh
+# Global
+git clone https://github.com/not-eexto/opencode-loaded.git ~/.config/opencode/plugins/opencode-loaded
+
+# Project
+mkdir -p .opencode/plugins
+git clone https://github.com/not-eexto/opencode-loaded.git .opencode/plugins/opencode-loaded
+```
+
+### 3. Via `opencode.jsonc`
+
+Add an **absolute path** to the plugins array. OpenCode does not expand `~/` in plugin paths, so use a full path (or `file:///...`). A relative `./path` also works, resolved from the config file's directory.
 
 ```jsonc
 // ~/.config/opencode/opencode.jsonc  (global)
 // or .opencode/opencode.jsonc       (project)
 {
-  "plugins": [
-    "~/.config/opencode/plugins/opencode-loaded"
-  ]
+  "$schema": "https://opencode.ai/config.json",
+  "plugins": ["/path/to/opencode-loaded"]
 }
 ```
 
@@ -43,9 +68,10 @@ With options:
 
 ```jsonc
 {
+  "$schema": "https://opencode.ai/config.json",
   "plugins": [
     {
-      "package": "~/.config/opencode/plugins/opencode-loaded",
+      "package": "/path/to/opencode-loaded",
       "options": {
         "badge": ["instructions", "skills", "agents"],
         "labels": { "instructions": "{count}i", "skills": "{count}s", "agents": "{count}a" }
@@ -55,42 +81,9 @@ With options:
 }
 ```
 
-> **Note:** The `github:owner/repo` shorthand works **only** with the CLI `opencode plugin add` command (method 2). It is not supported directly inside `opencode.jsonc`.
+> If you cloned into a discovered directory (method 2), do **not** also list it here: it is already loaded, and listing it again would be redundant.
 
-### 2. Via CLI
-
-```sh
-# Install from GitHub (recommended until npm publish)
-opencode plugin add github:not-eexto/opencode-loaded
-
-# Install from specific branch/tag/commit
-opencode plugin add github:not-eexto/opencode-loaded#main
-opencode plugin add git+https://github.com/not-eexto/opencode-loaded.git#main
-
-# Install from npm (not yet published)
-# opencode plugin add opencode-loaded
-```
-
-### 3. Local directory (development)
-
-Clone into the discovered plugins directory:
-
-```sh
-# Global
-git clone https://github.com/not-eexto/opencode-loaded.git ~/.config/opencode/plugins/opencode-loaded
-
-# Project (under .opencode/)
-mkdir -p .opencode/plugins
-git clone https://github.com/not-eexto/opencode-loaded.git .opencode/plugins/opencode-loaded
-```
-
-Or add an explicit local path in config:
-
-```jsonc
-{
-  "plugins": ["./plugins/opencode-loaded"]
-}
-```
+The plugin exports a `./tui` companion automatically loaded by OpenCode — no second entry is needed.
 
 ### 4. Verify installation
 
