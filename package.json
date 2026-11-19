@@ -1,6 +1,6 @@
 {
   "name": "opencode-loaded",
-  "version": "0.1.0",
+  "version": "0.2.0",
   "description": "OpenCode TUI plugin that shows which instruction files, skills, agents, commands, references, MCP servers and plugins are loaded for the current location and session.",
   "type": "module",
   "main": "./src/index.ts",
@@ -13,7 +13,7 @@
   },
   "engines": {
     "node": ">=22",
-    "opencode": ">=2.3.0"
+    "opencode": ">=2.0.0"
   },
   "license": "MIT",
   "keywords": [
@@ -36,7 +36,7 @@
     "check": "npm run typecheck && npm test"
   },
   "peerDependencies": {
-    "@opencode/plugin": ">=2.3.0 <3",
+    "@opencode/plugin": ">=2.0.0 <3",
     "@opentui/core": ">=0.8.4",
     "@opentui/solid": ">=0.8.4",
     "solid-js": ">=1.9.0"

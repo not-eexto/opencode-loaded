@@ -23,7 +23,7 @@ OpenCode plugin that shows, directly in the TUI, which instruction files, skills
 
 ## Installation
 
-`opencode-loaded` requires **OpenCode 2** (`@opencode/plugin` 2.3.x). It is currently **GitHub-only** — no npm package is published yet. It works with the [official OpenCode plugin installation methods](https://opencode.ai/docs/plugins/).
+`opencode-loaded` requires **OpenCode 2** (`@opencode/plugin` 2.0.0–2.3.x). It is currently **GitHub-only** — no npm package is published yet. It works with the [official OpenCode plugin installation methods](https://opencode.ai/docs/plugins/).
 
 ### 1. Via CLI (recommended)
 
@@ -33,7 +33,7 @@ Let OpenCode install the plugin and write the resolved path for you. The `github
 opencode plugin add github:not-eexto/opencode-loaded
 
 # Pin to a branch, tag or commit
-opencode plugin add github:not-eexto/opencode-loaded#v0.1.0
+opencode plugin add github:not-eexto/opencode-loaded#v0.2.0
 opencode plugin add github:not-eexto/opencode-loaded#main
 opencode plugin add git+https://github.com/not-eexto/opencode-loaded.git#main
 ```
@@ -176,7 +176,7 @@ See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, conventions, a
 
 ## Requirements
 
-- OpenCode with TUI plugin support (`@opencode/plugin` 2.3.x)
+- OpenCode with TUI plugin support (`@opencode/plugin` 2.0.0–2.3.x)
 - `solid-js` and `@opentui/*` are provided by the host
 
 ## License

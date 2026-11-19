@@ -7,6 +7,12 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 
 ## [Unreleased]
 
+## [0.2.0] - 2026-11-19
+
+### Changed
+
+- Lowered the minimum supported OpenCode version to 2.0.0 (`engines.opencode` and `@opencode/plugin` peer range are now `>=2.0.0 <3`). Verified against the real `@opencode/plugin`/`@opencode/client` tarballs 2.0.0–2.3.2 and the `@opencode/core` 2.0.0/2.3.2 sources: the API symbols and the wildcard matcher, permission evaluator and skill filter are identical across the range.
+
 ## [0.1.0] - 2026-11-19
 
 ### Added
