@@ -1,7 +1,7 @@
 {
   "name": "opencode-loaded",
   "version": "0.1.0",
-  "description": "OpenCode TUI plugin: shows which instruction files, skills, agents, commands, references, MCP servers and plugins are loaded for the current location and session.",
+  "description": "OpenCode TUI plugin that shows which instruction files, skills, agents, commands, references, MCP servers and plugins are loaded for the current location and session.",
   "type": "module",
   "main": "./src/index.ts",
   "types": "./src/index.ts",
@@ -12,7 +12,8 @@
     "./rpc": "./src/rpc.ts"
   },
   "engines": {
-    "node": ">=22"
+    "node": ">=22",
+    "opencode": ">=2.3.0"
   },
   "license": "MIT",
   "keywords": [
@@ -22,7 +23,9 @@
     "statusline",
     "agents",
     "skills",
-    "instructions"
+    "instructions",
+    "loaded",
+    "assets"
   ],
   "files": [
     "src"
@@ -30,7 +33,8 @@
   "scripts": {
     "typecheck": "tsc --noEmit",
     "test": "node --experimental-strip-types --test test/*.test.ts",
-    "check": "npm run typecheck && npm test"
+    "check": "npm run typecheck && npm test",
+    "lint": "tsc --noEmit --pretty false 2>&1 | head -50"
   },
   "peerDependencies": {
     "@opencode/plugin": ">=2.3.0 <3",
@@ -61,5 +65,9 @@
   "homepage": "https://github.com/not-eexto/opencode-loaded#readme",
   "bugs": {
     "url": "https://github.com/not-eexto/opencode-loaded/issues"
+  },
+  "publishConfig": {
+    "access": "public",
+    "provenance": true
   }
 }

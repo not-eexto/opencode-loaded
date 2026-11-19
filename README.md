@@ -3,6 +3,7 @@
 [![CI](https://github.com/not-eexto/opencode-loaded/actions/workflows/ci.yml/badge.svg)](https://github.com/not-eexto/opencode-loaded/actions/workflows/ci.yml)
 [![license](https://img.shields.io/badge/license-MIT-blue)](LICENSE)
 [![OpenCode](https://img.shields.io/badge/OpenCode-plugin-blue)](https://opencode.ai)
+[![TypeScript](https://img.shields.io/badge/TypeScript-5.9-blue)](tsconfig.json)
 
 OpenCode plugin that shows, directly in the TUI, which instruction files, skills, agents, commands, references, MCP servers and plugins are loaded for the current location and session.
 
@@ -10,7 +11,7 @@ OpenCode plugin that shows, directly in the TUI, which instruction files, skills
 1 instruction, 44 skills, 19 agents, 3 plugins
 ```
 
-[Features](#features) · [Installation](#installation) · [What it shows](#what-it-shows) · [Configuration](#configuration) · [How the counts are computed](#how-the-counts-are-computed) · [Development](#development) · [License](#license)
+[Features](#features) · [Installation](#installation) · [What it shows](#what-it-shows) · [Configuration](#configuration) · [How the counts are computed](#how-the-counts-are-computed) · [Development](#development) · [Contributing](#contributing) · [License](#license)
 
 ## Features
 
@@ -18,36 +19,92 @@ OpenCode plugin that shows, directly in the TUI, which instruction files, skills
 - **Session footer** (`prompt.footer.status`): compact summary (`1 instr · 30 skills · 19 agents`) that drops trailing groups until it fits, because that row is shared with the working directory and the key hints. Skills are filtered for the session's agent and the badge refreshes immediately when the agent changes with Shift+Tab.
 - **`/loaded`** (alias `/assets`): pick a group, then inspect the entries. It uses the same agent as the last session shown. The second list shows paths: full for instruction files, shortened to fit for skills and references.
 - **Verified instructions**: a file counts only when its text is actually present in a request, not merely because it exists on disk.
+- **Source-only**: OpenCode loads TypeScript sources directly — no build step, no `dist/` directory.
 
 ## Installation
 
-Clone the repository into the OpenCode plugin directory:
+`opencode-loaded` works with all [official OpenCode plugin installation methods](https://opencode.ai/docs/plugins/).
 
-```sh
-git clone https://github.com/not-eexto/opencode-loaded.git ~/.config/opencode/plugins/opencode-loaded
+### 1. Via `opencode.jsonc` (recommended)
+
+Add the plugin to your global or project config:
+
+```jsonc
+// ~/.config/opencode/opencode.jsonc  (global)
+// or .opencode/opencode.jsonc       (project)
+{
+  "plugins": [
+    "opencode-loaded"
+  ]
+}
 ```
 
-Restart OpenCode and check `opencode plugin list`: the plugin should report
-`server+tui+rpc: active`. OpenCode loads the TypeScript sources directly, so
-there is no build step.
+With options:
 
-With explicit options:
-
-```json
+```jsonc
 {
   "plugins": [
     {
       "package": "opencode-loaded",
-      "options": { "badge": ["instructions", "skills"], "suffix": "loaded" }
+      "options": {
+        "badge": ["instructions", "skills", "agents"],
+        "labels": { "instructions": "{count}i", "skills": "{count}s", "agents": "{count}a" }
+      }
     }
   ]
 }
 ```
 
+### 2. Via CLI
+
+```sh
+# Install latest from npm (when published)
+opencode plugin add opencode-loaded
+
+# Install from GitHub
+opencode plugin add github:not-eexto/opencode-loaded
+
+# Install from specific branch/tag/commit
+opencode plugin add github:not-eexto/opencode-loaded#main
+opencode plugin add git+https://github.com/not-eexto/opencode-loaded.git#main
+```
+
+### 3. Local directory (development)
+
+Clone into the discovered plugins directory:
+
+```sh
+# Global
+git clone https://github.com/not-eexto/opencode-loaded.git ~/.config/opencode/plugins/opencode-loaded
+
+# Project (under .opencode/)
+mkdir -p .opencode/plugins
+git clone https://github.com/not-eexto/opencode-loaded.git .opencode/plugins/opencode-loaded
+```
+
+Or add an explicit local path in config:
+
+```jsonc
+{
+  "plugins": ["./plugins/opencode-loaded"]
+}
+```
+
+### 4. Verify installation
+
+Restart OpenCode and run:
+
+```sh
+opencode plugin list
+```
+
+The plugin should report `server+tui+rpc: active`.
+
+> **Note:** OpenCode loads TypeScript sources directly, so there is no build step required.
+
 ## What it shows
 
-Run `/loaded` (or `/assets`) to open a two-step dialog: first choose a group,
-then browse its entries.
+Run `/loaded` (or `/assets`) to open a two-step dialog: first choose a group, then browse its entries.
 
 | Group | Source |
 | --- | --- |
@@ -56,11 +113,7 @@ then browse its entries.
 | agents, commands, references, MCP | the location registries |
 | plugins | registered plugins, built-ins excluded |
 
-Instruction files are the only group that can lie if taken from the filesystem
-alone, so they are **verified**: once a session has issued at least one request,
-a file counts only if its text is actually present in the request's system
-parts. Before that first request the list is discovery only, and the dialog
-labels it `unverified`.
+Instruction files are the only group that can lie if taken from the filesystem alone, so they are **verified**: once a session has issued at least one request, a file counts only if its text is actually present in the request's system parts. Before that first request the list is discovery only, and the dialog labels it `unverified`.
 
 ## Configuration
 
@@ -93,15 +146,9 @@ That renders `1i, 30s, 19a`.
 
 ## How the counts are computed
 
-The skill count is not cosmetic: OpenCode itself drops skills whose `skill`
-permission evaluates to `deny` before writing the request's skill guidance. The
-plugin reproduces that exactly — same wildcard matcher, last matching rule wins,
-`agent.permissions` followed by `session.permissions`, default `ask` is not a
-deny — so a session using `honest` reports 30 skills while `device-expert`
-reports 34 out of the same 44 discovered.
+The skill count is not cosmetic: OpenCode itself drops skills whose `skill` permission evaluates to `deny` before writing the request's skill guidance. The plugin reproduces that exactly — same wildcard matcher, last matching rule wins, `agent.permissions` followed by `session.permissions`, default `ask` is not a deny — so a session using `honest` reports 30 skills while `device-expert` reports 34 out of the same 44 discovered.
 
-Changing agent with Shift+Tab emits `session.agent.selected`; the plugin listens
-for it and recomputes the badge immediately, without waiting for a new request.
+Changing agent with Shift+Tab emits `session.agent.selected`; the plugin listens for it and recomputes the badge immediately, without waiting for a new request.
 
 Two implementation details worth knowing:
 
@@ -128,8 +175,9 @@ src/labels.ts        badge labels and `{count}` templates
 test/                unit tests for the pure modules
 ```
 
-See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup and conventions,
-and [CHANGELOG.md](CHANGELOG.md) for the release history.
+## Contributing
+
+See [CONTRIBUTING.md](CONTRIBUTING.md) for the development setup, conventions, and pull request guidelines.
 
 ## Requirements
 

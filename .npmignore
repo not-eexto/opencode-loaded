@@ -1,0 +1,32 @@
+# Dependencies
+node_modules/
+
+# Build output (source-only plugin, no dist)
+dist/
+build/
+*.tsbuildinfo
+
+# IDE / Editor
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# Test coverage
+coverage/
+.nyc_output/
+
+# Misc
+*.tgz
+.cache/
